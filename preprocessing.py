@@ -4,16 +4,20 @@ import string
 import random
 
 """
-this method has quite some assumptions. specifications (and potential improvements):
-- splits according to sentences (in an entry), not just entries (which might carry more context across sentences too)
-- removes all numbers and punctuation
+takes a json file and returns a list of sentences (lists of words)
+- naive implementation, doesn't handle sentences spanning multiple jsons
+@params:
+- file_path: path to the json file
+@return:
+- list of sentences (lists of words)
+limitations:
+- doesn't handle sentences spanning multiple jsons
 - lowercases all letters -> potential name-word ambiguity (Hunter vs. hunter)
-- doesn't adequately deal with apostrophes, i.e. i've -> ive, that's -> thats 
-maybe write different versions and compare their performance on analogy and other tasks 
+- doesn't deal with apostrophes, i.e. i've -> ive, that's -> thats
 """
-def process_json_file_sentences(file_path):
-    all_sentences = []
+def create_sentence_list(file_path):
     
+    sentence_list = []
     punctuation_to_remove = ''.join(char for char in string.punctuation if char not in '.!?:;')
     translator = str.maketrans('', '', punctuation_to_remove)
     
@@ -23,35 +27,35 @@ def process_json_file_sentences(file_path):
                 data = json.loads(line)
                 turn_text = data.get('turnText', '')
                 
-                # skip empty entries (might be problematic if you're concatenating)
+                # skip empty entries
                 if not turn_text.strip():
                     continue
                 
-                # Remove all contents within brackets including whitespace
-                # Using a more aggressive regex approach with DOTALL flag to match across lines
-                cleaned_text = re.sub(r'\[\s*[^\]]*\s*\]', ' ', turn_text, flags=re.DOTALL)  # [text]
-                cleaned_text = re.sub(r'\(\s*[^)]*\s*\)', ' ', cleaned_text, flags=re.DOTALL)  # (text)
-                cleaned_text = re.sub(r'\{\s*[^}]*\s*\}', ' ', cleaned_text, flags=re.DOTALL)  # {text}
+                # remove all contents within brackets including whitespace
+                clean_text = re.sub(r'\[\s*[^\]]*\s*\]', ' ', turn_text)  # [text]
+                clean_text = re.sub(r'\(\s*[^)]*\s*\)', ' ', clean_text)  # (text)
+                clean_text = re.sub(r'\{\s*[^}]*\s*\}', ' ', clean_text)  # {text}
                 
-                # Handle partial brackets - open bracket with no close bracket
-                cleaned_text = re.sub(r'\[\s*[^\]]*$', ' ', cleaned_text, flags=re.DOTALL)
-                cleaned_text = re.sub(r'\(\s*[^)]*$', ' ', cleaned_text, flags=re.DOTALL)
-                cleaned_text = re.sub(r'\{\s*[^}]*$', ' ', cleaned_text, flags=re.DOTALL)
+                # handle partial left brackets
+                clean_text = re.sub(r'\[\s*[^\]]*$', ' ', clean_text)
+                clean_text = re.sub(r'\(\s*[^)]*$', ' ', clean_text)
+                clean_text = re.sub(r'\{\s*[^}]*$', ' ', clean_text)
                 
-                # Handle partial brackets - close bracket with no open bracket
-                cleaned_text = re.sub(r'^[^\[]*\]', ' ', cleaned_text, flags=re.DOTALL)
-                cleaned_text = re.sub(r'^[^(]*\)', ' ', cleaned_text, flags=re.DOTALL)
-                cleaned_text = re.sub(r'^[^{]*\}', ' ', cleaned_text, flags=re.DOTALL)
+                # handle partial right brackets
+                clean_text = re.sub(r'^[^\[]*\]', ' ', clean_text)
+                clean_text = re.sub(r'^[^(]*\)', ' ', clean_text)
+                clean_text = re.sub(r'^[^{]*\}', ' ', clean_text)
                 
-                # Continue processing as before
-                cleaned_text = re.sub(r'\d+', '', cleaned_text)
-                cleaned_text = cleaned_text.lower()
-                cleaned_text = cleaned_text.translate(translator)
+                clean_text = re.sub(r'\d+', '', clean_text)     # remove numbers
+                clean_text = clean_text.lower()                 # lowercase
+                clean_text = clean_text.translate(translator)   # remove punctuation
                 
-                # Clean up extra spaces from bracket removals before splitting
-                cleaned_text = re.sub(r'\s+', ' ', cleaned_text).strip()
+                # clean up extra spaces from bracket removals
+                clean_text = re.sub(r'\s+', ' ', clean_text).strip()
                 
-                sentences = re.split(r'(?<=[.!?:;])\s*', cleaned_text)
+                # split according to sentence-ending punctuation
+                sentences = re.split(r'(?<=[.!?:;])\s*', clean_text)
+
                 for sentence in sentences:
                     sentence = re.sub(r'[.!?:;]', ' ', sentence)
                     sentence = re.sub(r'\s+', ' ', sentence)
@@ -60,20 +64,29 @@ def process_json_file_sentences(file_path):
                     if sentence:
                         words = sentence.split()
                         if words:
-                            all_sentences.append(words)
+                            sentence_list.append(words)
+
             except json.JSONDecodeError:
                 continue
     
-    return all_sentences
+    return sentence_list
 
-# random subsampling version
+"""
+same as above, but subsamples the sentences
+@params:
+- file_path: path to the json file
+- subsample_rate: rate of subsampling
+@return:
+- list of sentences (lists of words)
+"""
 
-def process_json_file_sentences_subsample(file_path, subsample_rate=0.1):
-    all_sentences = []
-    random.seed(42)
-
+def create_sentence_list_from_subsample(file_path, subsample_rate=0.1):
+    
+    sentence_list = []
     punctuation_to_remove = ''.join(char for char in string.punctuation if char not in '.!?:;')
     translator = str.maketrans('', '', punctuation_to_remove)
+
+    random.seed(42)
     
     with open(file_path, 'r') as file:
         for line in file:
@@ -82,35 +95,35 @@ def process_json_file_sentences_subsample(file_path, subsample_rate=0.1):
                     data = json.loads(line)
                     turn_text = data.get('turnText', '')
                     
-                    # Skip empty entries
+                    # skip empty entries
                     if not turn_text.strip():
                         continue
                     
-                    # Remove all contents within brackets including whitespace
-                    # Using a more aggressive regex approach with DOTALL flag to match across lines
-                    cleaned_text = re.sub(r'\[\s*[^\]]*\s*\]', ' ', turn_text, flags=re.DOTALL)  # [text]
-                    cleaned_text = re.sub(r'\(\s*[^)]*\s*\)', ' ', cleaned_text, flags=re.DOTALL)  # (text)
-                    cleaned_text = re.sub(r'\{\s*[^}]*\s*\}', ' ', cleaned_text, flags=re.DOTALL)  # {text}
+                    # remove all contents within brackets including whitespace
+                    clean_text = re.sub(r'\[\s*[^\]]*\s*\]', ' ', turn_text)  # [text]
+                    clean_text = re.sub(r'\(\s*[^)]*\s*\)', ' ', clean_text)  # (text)
+                    clean_text = re.sub(r'\{\s*[^}]*\s*\}', ' ', clean_text)  # {text}
                     
-                    # Handle partial brackets - open bracket with no close bracket
-                    cleaned_text = re.sub(r'\[\s*[^\]]*$', ' ', cleaned_text, flags=re.DOTALL)
-                    cleaned_text = re.sub(r'\(\s*[^)]*$', ' ', cleaned_text, flags=re.DOTALL)
-                    cleaned_text = re.sub(r'\{\s*[^}]*$', ' ', cleaned_text, flags=re.DOTALL)
+                    # handle partial left brackets
+                    clean_text = re.sub(r'\[\s*[^\]]*$', ' ', clean_text)
+                    clean_text = re.sub(r'\(\s*[^)]*$', ' ', clean_text)
+                    clean_text = re.sub(r'\{\s*[^}]*$', ' ', clean_text)
                     
-                    # Handle partial brackets - close bracket with no open bracket
-                    cleaned_text = re.sub(r'^[^\[]*\]', ' ', cleaned_text, flags=re.DOTALL)
-                    cleaned_text = re.sub(r'^[^(]*\)', ' ', cleaned_text, flags=re.DOTALL)
-                    cleaned_text = re.sub(r'^[^{]*\}', ' ', cleaned_text, flags=re.DOTALL)
+                    # handle partial right brackets
+                    clean_text = re.sub(r'^[^\[]*\]', ' ', clean_text)
+                    clean_text = re.sub(r'^[^(]*\)', ' ', clean_text)
+                    clean_text = re.sub(r'^[^{]*\}', ' ', clean_text)
                     
-                    # Continue processing as before
-                    cleaned_text = re.sub(r'\d+', '', cleaned_text)
-                    cleaned_text = cleaned_text.lower()
-                    cleaned_text = cleaned_text.translate(translator)
+                    clean_text = re.sub(r'\d+', '', clean_text)     # remove numbers
+                    clean_text = clean_text.lower()                 # lowercase
+                    clean_text = clean_text.translate(translator)   # remove punctuation
                     
-                    # Clean up extra spaces from bracket removals before splitting
-                    cleaned_text = re.sub(r'\s+', ' ', cleaned_text).strip()
+                    # clean up extra spaces from bracket removals
+                    clean_text = re.sub(r'\s+', ' ', clean_text).strip()
                     
-                    sentences = re.split(r'(?<=[.!?:;])\s*', cleaned_text)
+                    # split according to sentence-ending punctuation
+                    sentences = re.split(r'(?<=[.!?:;])\s*', clean_text)
+
                     for sentence in sentences:
                         sentence = re.sub(r'[.!?:;]', ' ', sentence)
                         sentence = re.sub(r'\s+', ' ', sentence)
@@ -119,8 +132,10 @@ def process_json_file_sentences_subsample(file_path, subsample_rate=0.1):
                         if sentence:
                             words = sentence.split()
                             if words:
-                                all_sentences.append(words)
+                                sentence_list.append(words)
+
                 except json.JSONDecodeError:
                     continue
     
-    return all_sentences
+    return sentence_list
+

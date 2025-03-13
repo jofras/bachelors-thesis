@@ -93,19 +93,40 @@ def simplify_jsonl_text_url(input_file, output_file):
         print(f"Error: {e}")
         return False
 
-def batch_simplify(input_folder, seg_prefix="useg", method=simplify_jsonl_text_url):
+def text_url_to_glove_format(input_file, output_file):
     """
-    process all seg*.jsonl files in the given folder with an above method, creating {seg_prefix}seg*.jsonl files.
+    takes a json file and turns it into a text file containing the raw turnText per url, no labels
+    """ 
+    try:
+        with open(input_file, 'r', encoding='utf-8') as infile, open(output_file, 'w', encoding='utf-8') as outfile:
+            for line_num, line in enumerate(infile, 1):
+                try:
+                    data = json.loads(line.strip())
+                    if 'turnText' in data and 'mp3url' in data:
+                        outfile.write(data["turnText"] + '\n')
+                    else:
+                        print(f"warning: missing fields in line {line_num}, skipping.")
+                except json.JSONDecodeError:
+                    print(f"warning: couldn't parse json at line {line_num}")
+                    continue
+        return True
+    except (IOError, OSError) as e:
+        print(f"Error: {e}")
+        return False
+
+def batch_simplify(input_folder, in_prefix="museg", out_prefix="gseg", in_type="jsonl", out_type="txt", method=text_url_to_glove_format):
+
+    """
+    process all {in_prefix}*.{in_type} files in the given folder with an above method, creating {out_prefix}*.{out_type} files.
     
-    args:
-        input_folder (str): folder containing the segmented jsonl files
+    args: self-explanatory
     """
-    # get all seg*.jsonl files
-    file_pattern = os.path.join(input_folder, "seg*.jsonl")
+    # get all prefixed seg*.jsonl files
+    file_pattern = os.path.join(input_folder, f"{in_prefix}*.{in_type}")
     input_files = glob.glob(file_pattern)
     
     if not input_files:
-        print(f"No files matching 'seg*.jsonl' found in {input_folder}")
+        print(f"no files matching '{in_prefix}*.{in_type}' found in {input_folder}")
         return
     
     # sort files to process them in order
@@ -117,8 +138,8 @@ def batch_simplify(input_folder, seg_prefix="useg", method=simplify_jsonl_text_u
     for input_file in input_files:
         # extract the segment number and create the output filename
         base_name = os.path.basename(input_file)
-        seg_num = base_name.replace("seg", "").replace(".jsonl", "")
-        output_file = os.path.join(input_folder, f"{seg_prefix}{seg_num}.jsonl")
+        seg_num = base_name.replace(f"{in_prefix}", "").replace(f".{in_type}", "")
+        output_file = os.path.join(input_folder, f"{out_prefix}{seg_num}.{out_type}")
         
         print(f"processing {base_name} -> {os.path.basename(output_file)}")
         

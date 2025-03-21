@@ -235,7 +235,7 @@ class SentenceListCreator(FileOperation):
                     self.sentence_list = self.tokenize_with_named_entities(text)
                 else:
                     logger.info("Tokenizing text")
-                    self.sentence_list = self.tokenize(text)
+                    self.sentence_list = self.new_tokenize(text)
 
             logger.info(f"Writing {len(self.sentence_list)} sentences to json file")
             with open(self.output_file_path, 'w') as output_file:
@@ -328,6 +328,50 @@ class SentenceListCreator(FileOperation):
                     if not token.is_space and not token.is_punct:
                         sentence_words.append(token.text.lower())
                 sentences.append(sentence_words)
+
+            return sentences
+        except Exception as e:
+            logger.error(f"Error in tokenizing: {e}")
+            raise
+
+
+    def new_tokenize(self, text) -> List[List[str]]:
+
+        """
+        Simple tokenization of text into sentences, in chunks to account for SpaCy's limited ability to process 
+        large documents. 
+
+        Args:
+            text: Input text to tokenize.
+        
+        Returns:
+            List[List[str]]: List of sentences, each containing a list of tokens.
+        """
+        try:
+            
+            sentences = []
+            chunk_size = 1_000_000
+            start = 0
+
+            while start < len(text):
+                end = min(start + chunk_size, len(text))
+
+                if end < len(text):
+                    doc = self.nlp(text[start:end])
+                    if len(list(doc.sents)) > 0:
+                        last_sentence = list(doc.sents)[-1]
+                        end = last_sentence.end_char
+
+                doc = self.nlp(text[start:end])
+                for sentence in doc.sents:
+                    sentence_words = [
+                        token.text.lower()
+                        for token in sentence
+                        if not token.is_space and not token.is_punct
+                    ]
+                    sentences.append(sentence_words)
+
+                start = end
 
             return sentences
         except Exception as e:

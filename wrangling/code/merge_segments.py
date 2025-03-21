@@ -2,6 +2,14 @@ import json
 import os
 import glob
 
+"""
+This script merges all turnText segments originating from the same URL (i.e. podcast).
+
+I haven't integrated this into the filefinder/proc/op trio because it requires "caching" jsons across files, 
+and instead of trying to build a prettier file preprocessing framework i should probably get on with training a
+word2vec and gloVe model on the whole corpus. I might get back to it later though.
+"""
+
 def merge_on_url(input_file, output_file, cached_url, cached_turn_text):
     
     """

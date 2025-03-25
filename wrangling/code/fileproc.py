@@ -3,7 +3,7 @@ import shutil
 import logging
 from typing import List, Optional, Union, Tuple, Type, TypeVar
 
-from wrangling.code.fileop import FileOperation
+from filefunc import FileFunction
 
 logging.basicConfig(
     level=logging.INFO,
@@ -11,7 +11,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("FileProcessor")
 
-T = TypeVar('T', bound=FileOperation)
+T = TypeVar('T', bound=FileFunction)
 
 class FileProcessor:
 
@@ -23,7 +23,7 @@ class FileProcessor:
     def __init__(self, 
                  input_file_path_list: Optional[List[Union[str, Path]]] = None, 
                  output_file_path_list: Optional[List[Union[str, Path]]] = None,
-                 operation: Optional[FileOperation] = None, 
+                 operation: Optional[FileFunction] = None, 
                  destination: Union[str, Path] = Path(__file__).resolve().parent
                  # maybe add some renaming options
                  ) -> None:
@@ -34,7 +34,7 @@ class FileProcessor:
         Args: 
             input_file_path_list: List of file paths to process.
             output_file_path_list: Destination file paths.
-            operation: FileOperation object to apply to each file.
+            operation: FileFunction object to apply to each file.
             destination: Directory where processed files will be saved. 
         """
         
@@ -96,14 +96,14 @@ class FileProcessor:
 
     def process_files(self) -> Tuple[int, int]:
         """
-        Process all files in the input_file_path_list using the specified FileOperation.
+        Process all files in the input_file_path_list using the specified FileFunction.
 
         Returns:
             Tuple[int, int]: A tuple containing (number of successfully processed files, number of errors). 
 
         Raises:
             AttributeError: If input_file_path_list or operation is uninitialized.
-            TypeError: If operation is not a FileOperation or if it doesn't return a Path object.
+            TypeError: If operation is not a FileFunction or if it doesn't return a Path object.
             FileNotFoundError: If input files don't exist.
             PermissionError: If there are permission issues.
             Exception: For other, unexpected errors.
@@ -118,10 +118,10 @@ class FileProcessor:
             logger.error("No operation specified")
             raise AttributeError("No operation specified")
         
-        # verify that operation is a FileOperation
-        if not isinstance(self.operation, FileOperation):
-            logger.error(f"Operation must be a FileOperation object, got {type(self.operation)}")
-            raise TypeError(f"Operation must be a FileOperation object, got {type(self.operation)}")
+        # verify that operation is a FileFunction
+        if not isinstance(self.operation, FileFunction):
+            logger.error(f"Operation must be a FileFunction object, got {type(self.operation)}")
+            raise TypeError(f"Operation must be a FileFunction object, got {type(self.operation)}")
         
         # ensure destination directory exists
         try:
@@ -228,18 +228,18 @@ class FileProcessor:
         logger.info(f"Updated file list with {len(input_file_path_list)} files")
     
 
-    def set_operation(self, operation: FileOperation) -> None:
+    def set_operation(self, operation: FileFunction) -> None:
         
         """
         Set or update the operation to be applied to files.
         
         Args:
-            operation: FileOperation object to apply to each file.
+            operation: FileFunction object to apply to each file.
         """
 
-        if not isinstance(operation, FileOperation):
-            logger.error(f"Operation must be a FileOperation object, got {type(operation)}")
-            raise TypeError(f"Operation must be a FileOperation object")
+        if not isinstance(operation, FileFunction):
+            logger.error(f"Operation must be a FileFunction object, got {type(operation)}")
+            raise TypeError(f"Operation must be a FileFunction object")
             
         self.operation = operation
         logger.info(f"Updated file processing operation to {operation.__class__.__name__}")

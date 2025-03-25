@@ -9,15 +9,16 @@ import json
 import spacy
 from spacy.tokens import Token, Doc
 from spacy.language import Language
+import itertools
 
 # set up logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
-logger = logging.getLogger("FileOperation")
+logger = logging.getLogger("FileFunction")
 
-class FileOperation:
+class FileFunction:
 
     """
     Base class for file operations that transform input files to output files. 
@@ -37,7 +38,7 @@ class FileOperation:
                  ) -> None:
         
         """
-        Initialize the FileOperation.
+        Initialize the FileFunction.
 
         Args: 
             input_file_path: Path to the input file.
@@ -151,7 +152,7 @@ class FileOperation:
 
 
 
-class SentenceListCreator(FileOperation):
+class SentenceListCreator(FileFunction):
 
     """
     Transforms a text file into a json file containing a list of tokenized sentences. 
@@ -206,11 +207,6 @@ class SentenceListCreator(FileOperation):
             logger.error(f"Error loading SpaCy model: {e}")
             raise
 
-        if self.recognize_named_entities and self.nlp:
-            if not Token.has_extension('is_entity'):
-                Token.set_extension('is_entity', default=False)
-                logger.info("Registered 'is_entity' extension for Tokens")
-
 
     def map(self) -> None:
 
@@ -231,11 +227,15 @@ class SentenceListCreator(FileOperation):
                     text = re.sub(r'\{.*?\}', '', text) # remove {text}
 
                 if self.recognize_named_entities:
-                    logger.info("Tokenizing with named entity recognition")
-                    self.sentence_list = self.tokenize_with_named_entities(text)
+                    logger.info("Started creating doc ('ner' enabled)")
+                    doc_gen = self.nlp.pipe(text, disable=['tok2vec', 'tagger', 'attribute_ruler', 'lemmatizer'], n_process=6) # parser + ner to recognize named entities
+                    logger.info("Turning doc into sentence list")
+                    self.sentence_list = list(itertools.chain.from_iterable(self.tokenize_with_named_entities(doc) for doc in doc_gen))
                 else:
-                    logger.info("Tokenizing text")
-                    self.sentence_list = self.new_tokenize(text)
+                    logger.info("Start creating doc")
+                    doc_gen = self.nlp.pipe(text, disable=['tok2vec', 'tagger', 'attribute_ruler', 'lemmatizer', 'ner'], n_process=6) # parser to recognize sentence boundaries
+                    logger.info("Turning doc into sentence list")
+                    self.sentence_list = list(itertools.chain.from_iterable(self.tokenize(doc) for doc in doc_gen))
 
             logger.info(f"Writing {len(self.sentence_list)} sentences to json file")
             with open(self.output_file_path, 'w') as output_file:
@@ -246,59 +246,49 @@ class SentenceListCreator(FileOperation):
             raise
 
 
-    def tokenize_with_named_entities(self, text: str) -> List[List[str]]:
+    def tokenize_with_named_entities(self, doc: Doc) -> List[List[str]]:
         
         """
         Tokenize text into sentences while preserving named entities. 
 
         Args: 
-            text: Input text to tokenize. 
+            text: Input Doc to turn into sentence lists. 
 
         Returns: 
             List[List[str]]: List of sentences, each containing a list of tokens.
+
+        Raises:
+            ValueError: If an entity with no beginning token is found.
         """
 
         try:
-            doc = self.nlp(text)
             sentences = []
 
             for sentence in doc.sents:
-
-                # reset entity flags for tokens
-                for token in sentence:
-                    token._.set('is_entity', False)
-
-                # mark tokens that are part of entities
-                entity_texts = {}
-                for entity in sentence.ents:
-                    entity_key = (entity.start, entity.end)
-                    entity_texts[entity_key] = entity.text.lower()
-                    for token in entity:
-                        token._.set('is_entity', True)
-
-                
                 sentence_words = []
                 i = 0
-                while i < len(sentence): 
+
+                while i < len(sentence):
                     token = sentence[i]
 
-                    # if the token is part of an entity, add the entire entity
-                    if token._.get('is_entity'): 
-                        for entity_span, entity_text in entity_texts.items():
-                            if token.i >= entity_span[0] and token.i < entity_span[1]:
-                                if entity_text not in sentence_words: 
-                                    sentence_words.append(entity_text)
-                                # skip to the end of entity
-                                i = entity_span[1] - 1
-                                break
-                    
-                    # otherwise add the token if it's not punctuation or whitespace
-                    elif not token.is_space and not token.is_punct:
-                        sentence_words.append(token.text.lower())
-
-                    i += 1
+                    if token.ent_iob_ == 'B':
+                        entity_text = token.text.lower()
+                        if i + 1 < len(sentence) and sentence[i + 1].ent_iob_ == 'I':
+                            i += 1
+                            while i < len(sentence) and sentence[i].ent_iob_ == 'I':
+                                entity_text = " ".join(entity_text, sentence[i].text.lower())
+                                i += 1
+                        sentence_words.append(entity_text)
+                    elif token.ent_iob_ == 'O':
+                        if token.is_alpha:
+                            sentence_words.append(token.text.lower())
+                        i += 1
+                    else:
+                        logger.error(f"Token inside an entity with no beginning found: {token.text}")
+                        raise ValueError(f"Unexpected entity IOB tag: {token.ent_iob_}")
                 
                 sentences.append(sentence_words)
+                        
 
             return sentences
         
@@ -307,26 +297,24 @@ class SentenceListCreator(FileOperation):
             raise
 
     
-    def tokenize(self, text) -> List[List[str]]:
+    def tokenize(self, doc: Doc) -> List[List[str]]:
 
         """
         Simple tokenization of text into sentences
 
         Args:
-            text: Input text to tokenize.
+            text: Input Doc to turn into sentence lists.
         
         Returns:
             List[List[str]]: List of sentences, each containing a list of tokens.
         """
         try:
-            doc = self.nlp(text)
             sentences = []
 
             for sentence in doc.sents:
-                sentence_words = []
-                for token in sentence:
-                    if not token.is_space and not token.is_punct:
-                        sentence_words.append(token.text.lower())
+                print(f"Sentence: {sentence}")
+                sentence_words = [token.text.lower() for token in sentence if token.is_alpha]
+                print(sentence_words)
                 sentences.append(sentence_words)
 
             return sentences
@@ -335,51 +323,7 @@ class SentenceListCreator(FileOperation):
             raise
 
 
-    def new_tokenize(self, text) -> List[List[str]]:
-
-        """
-        Simple tokenization of text into sentences, in chunks to account for SpaCy's limited ability to process 
-        large documents. 
-
-        Args:
-            text: Input text to tokenize.
-        
-        Returns:
-            List[List[str]]: List of sentences, each containing a list of tokens.
-        """
-        try:
-            
-            sentences = []
-            chunk_size = 1_000_000
-            start = 0
-
-            while start < len(text):
-                end = min(start + chunk_size, len(text))
-
-                if end < len(text):
-                    doc = self.nlp(text[start:end])
-                    if len(list(doc.sents)) > 0:
-                        last_sentence = list(doc.sents)[-1]
-                        end = last_sentence.end_char
-
-                doc = self.nlp(text[start:end])
-                for sentence in doc.sents:
-                    sentence_words = [
-                        token.text.lower()
-                        for token in sentence
-                        if not token.is_space and not token.is_punct
-                    ]
-                    sentences.append(sentence_words)
-
-                start = end
-
-            return sentences
-        except Exception as e:
-            logger.error(f"Error in tokenizing: {e}")
-            raise
-
-
-class EntrySimplifier(FileOperation):
+class EntrySimplifier(FileFunction):
 
     """
     Simplifies entries in a jsonl file by keeping only specified fields.

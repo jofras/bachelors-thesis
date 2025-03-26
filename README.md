@@ -10,7 +10,8 @@ this folder contains all code and files related to preprocessing, i.e. the origi
 
 the wrangling pipeline currently looks as follows: 
 
-<img src="wrangling.png", alt="Diagram", width="600">
+[<img src="wrangling.png", alt="Diagram", width="600">](https://github.com/jofras/bachelors-thesis/blob/main/wrangling.png?raw=true)![image](https://github.com/user-attachments/assets/43e5f0e9-de5d-4749-a9e3-1f24b9f586d1)
+
 
 ## embedding_gen
 

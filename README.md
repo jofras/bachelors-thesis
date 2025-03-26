@@ -6,6 +6,12 @@ all the code i'm using for my bachelor's thesis, split into five folders:
 
 this folder contains all code and files related to preprocessing, i.e. the original podcast data + code to break it down into podcast transcripts. 
 
+### current pipeline
+
+the wrangling pipeline currently looks as follows: 
+
+<img src="wrangling.png", alt="Diagram", width="600">
+
 ## embedding_gen
 
 all code related to training embeddings, plus the generated embeddings (and models). models are described as follows: 

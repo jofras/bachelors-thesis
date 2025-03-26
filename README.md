@@ -28,7 +28,7 @@ Other methods in this folder include ```merge_on_url``` and ```create_ijson_gen`
 
 To help give an overview of the wrangling pipeline, here's a visual diagram: 
 
-![image](wrangling_pipeline.png)
+![image](diagrams/wrangling_pipeline.png)
 
 Subclasses of ```FileFunction``` are in yellow, while other methods are colored blue. 
 

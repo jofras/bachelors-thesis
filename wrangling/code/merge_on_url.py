@@ -10,10 +10,16 @@ and instead of trying to build a prettier file preprocessing framework i should 
 word2vec and gloVe model on the whole corpus. I might get back to it later though.
 """
 
-def merge_on_url(input_file, output_file, cached_url, cached_turn_text):
+def merge_on_url_helper(input_file, output_file, cached_url, cached_turn_text):
     
     """
-    helper method to merge turnTexts with the same url
+    Helper method to merge turnTexts with the same url.
+
+    Args: 
+        input_file
+        output_file
+        cached_url: The last URL from the last file, to check if an episode runs across files.
+        cached_turn_text: The text gathered for that last URL, to be merged if applicable and written to the new file.
     """
     
     # initialize temp variables with cached values
@@ -62,7 +68,7 @@ def merge_on_url(input_file, output_file, cached_url, cached_turn_text):
         print(f"Error: {e}")
         return None, ''
 
-def batch_merge_on_url(input_folder="../data/segments/text_url/raw", output_folder="../data/segments/text_url/merged", in_prefix="u", out_prefix="mu"):
+def merge_on_url(input_folder="../data/segments/text_url/raw", output_folder="../data/segments/text_url/merged", in_prefix="u", out_prefix="mu"):
 
     """
     merge all jsons with the same url
@@ -91,7 +97,7 @@ def batch_merge_on_url(input_folder="../data/segments/text_url/raw", output_fold
         last_output_file = output_file
         print(f"processing {base_name} -> {os.path.basename(output_file)}")
         
-        result = merge_on_url(input_file, output_file, cached_url, cached_turn_text)
+        result = merge_on_url_helper(input_file, output_file, cached_url, cached_turn_text)
         if result[0] is not None:
             cached_url, cached_turn_text = result
             successful += 1

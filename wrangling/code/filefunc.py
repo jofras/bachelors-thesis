@@ -11,6 +11,9 @@ from spacy.tokens import Token, Doc
 from spacy.language import Language
 import itertools
 
+# for TextCleaner
+import contractions
+
 # set up logging
 logging.basicConfig(
     level=logging.INFO,
@@ -155,13 +158,13 @@ class FileFunction:
 class SentenceListCreator(FileFunction):
 
     """
-    Transforms a text file into a json file containing a list of tokenized sentences. 
+    Transforms a text file into a text file containing a list of lists of sentence tokens (word2vec input). 
+    e.g. "I like to drink hot chocolate. Do you?" -> [['i', 'like', 'to', 'drink', 'hot', 'chocolate'], ['do', 'you']]
 
-    Assumes a .txt input file and a .json output file. 
-    Can optionally remove bracketed content and recognize named entities. 
+    Assumes a .txt input file and a .json output file. (Why json output? -> For later ijson parsing)
+    Can optionally recognize named entities.
 
     Attributes: 
-        remove_brackets (bool): Whether to remove content in brackets. 
         recognize_named_entities (bool): Whether to recognize named entities. 
         sentence_list (List): List to store tokenized sentences. 
         nlp (spacy.Language): SpaCy language model for text processing. 
@@ -170,7 +173,6 @@ class SentenceListCreator(FileFunction):
     def __init__(self,
                  input_file_path: Union[str, Path],
                  output_file_path: Union[str, Path],
-                 remove_bracketed_content: bool = True,
                  recognize_named_entities: bool = False,
                  sentence_list: Optional[List[List[str]]] = None,
                  nlp: Optional[Language] = None
@@ -182,7 +184,6 @@ class SentenceListCreator(FileFunction):
         Args:
             input_file_path: Path to the input text file.
             output_file_path: Path where the output json will be saved.
-            remove_bracketed_content: Whether to remove text in brackets. 
             recognize_named_entities: Whether to identify named entities.
             sentence_list: Optional pre-existing list to store results.
             nlp: SpaCy language model (loads en_core_web_sm by default). 
@@ -196,12 +197,13 @@ class SentenceListCreator(FileFunction):
             self.input_extension, 
             self.output_extension
         )
-        self.remove_brackets = remove_bracketed_content
         self.recognize_named_entities = recognize_named_entities
         self.sentence_list = sentence_list if sentence_list is not None else []
         
         try:
             self.nlp = nlp if nlp is not None else spacy.load("en_core_web_sm")
+            if not 'sentencizer' in self.nlp.pipe_names:
+                nlp.add_pipe('sentencizer') # to recognize sentence boundaries
             logger.info("SpaCy model loaded successfully")
         except Exception as e:
             logger.error(f"Error loading SpaCy model: {e}")
@@ -213,27 +215,21 @@ class SentenceListCreator(FileFunction):
         """
         Process text file into tokenized sentences and save as json.
 
-        Removes bracketed content and processes named entities if specified.
+        Processes named entities if specified.
         """
         try: 
             logger.info(f"Processing text file: {self.input_file_path}")
             with open(self.input_file_path, 'r', encoding='utf-8') as input_file:
                 text = input_file.read()
-                
-                if self.remove_brackets:
-                    logger.info("Removing bracketed content")
-                    text = re.sub(r'\[.*?\]', '', text) # remove [text]
-                    text = re.sub(r'\(.*?\)', '', text) # remove (text)
-                    text = re.sub(r'\{.*?\}', '', text) # remove {text}
-
+            
                 if self.recognize_named_entities:
-                    logger.info("Started creating doc ('ner' enabled)")
-                    doc_gen = self.nlp.pipe(text, disable=['tok2vec', 'tagger', 'attribute_ruler', 'lemmatizer'], n_process=6) # parser + ner to recognize named entities
+                    logger.info("Started creating doc generator ('ner' enabled)")
+                    doc_gen = self.nlp.pipe(text, disable=['tok2vec', 'tagger', 'parser', 'attribute_ruler', 'lemmatizer'], n_process=6) # parser + ner to recognize named entities
                     logger.info("Turning doc into sentence list")
                     self.sentence_list = list(itertools.chain.from_iterable(self.tokenize_with_named_entities(doc) for doc in doc_gen))
                 else:
-                    logger.info("Start creating doc")
-                    doc_gen = self.nlp.pipe(text, disable=['tok2vec', 'tagger', 'attribute_ruler', 'lemmatizer', 'ner'], n_process=6) # parser to recognize sentence boundaries
+                    logger.info("Start creating doc generator")
+                    doc_gen = self.nlp.pipe(text, disable=['tok2vec', 'tagger', 'parser', 'attribute_ruler', 'lemmatizer', 'ner'], n_process=6) # parser to recognize sentence boundaries
                     logger.info("Turning doc into sentence list")
                     self.sentence_list = list(itertools.chain.from_iterable(self.tokenize(doc) for doc in doc_gen))
 
@@ -312,9 +308,7 @@ class SentenceListCreator(FileFunction):
             sentences = []
 
             for sentence in doc.sents:
-                print(f"Sentence: {sentence}")
                 sentence_words = [token.text.lower() for token in sentence if token.is_alpha]
-                print(sentence_words)
                 sentences.append(sentence_words)
 
             return sentences
@@ -420,4 +414,163 @@ class EntrySimplifier(FileFunction):
             raise
 
 
+class TextCleaner(FileFunction):
+
+    """
+    Removes brackets and fixes contractions.
+
+    Assumes a .txt input and output file. 
+
+    Attributes:
+        remove_brackets (bool): Whether to remove brackets. 
+        contraction_level (int): How powerful contraction fixing is.
+    """
+
+    def __init__(self,
+                 input_file_path: Union[str, Path],
+                 output_file_path: Union[str, Path],
+                 remove_brackets: bool = True,
+                 contraction_level: int = 1
+                 ) -> None:
         
+        self.input_extension = ".txt"
+        self.output_extension = ".txt"
+
+        super().__init__(
+            Path(input_file_path) if isinstance(input_file_path, str) else input_file_path, 
+            Path(output_file_path) if isinstance(output_file_path, str) else output_file_path, 
+            self.input_extension, 
+            self.output_extension
+        )
+
+        self.remove_brackets = remove_brackets
+        
+        if self.contraction_level >= 0 and self.contraction_level <= 2:
+            self.contraction_level = contraction_level
+        else:
+            logger.error(f"Contraction level must be 0 (no contraction expansion), 1 (using contractions) or 2 (using pycontractions), got {contraction_level}")
+            raise ValueError(f"Contraction level must be between 0 and 2")
+        
+    def map(self) -> None:
+        
+        """
+        Remove brackets and expand contractions.
+        """
+        try: 
+            logger.info(f"Processing text file: {self.input_file_path}")
+            with open(self.input_file_path, 'r', encoding='utf-8') as input_file, open(self.output_file_path, 'w', encoding='utf-8') as output_file:
+                text = input_file.read()
+                
+                if self.remove_brackets:
+                    logger.info("Removing bracketed content")
+                    text = re.sub(r'\[.*?\]', '', text) # remove [text]
+                    text = re.sub(r'\(.*?\)', '', text) # remove (text)
+                    text = re.sub(r'\{.*?\}', '', text) # remove {text}
+
+                if self.contraction_level == 1:
+                    logger.info("Expanding contractions naively")
+                    text = contractions.fix(text)
+                elif self.contraction_level == 2:
+                    logger.error("'contraction_level == 2' hasn't been implemented yet.")
+                    raise
+
+                logger.info(f"Writing {len(text)} characters to text file")
+                output_file.write(text)
+        
+        except Exception as e:
+            logger.error(f"Error processing text file: {e}")
+            raise
+
+
+class StopTokenAppender(FileFunction):
+
+    """
+    Appends a custom stop token to each line of a text file.
+
+    Assumes a .txt input and output file. 
+
+    Why this exists: Creating a sentence list from 
+
+    Attributes: 
+        stop_token (str): The stop token to add. Defaults to "eopc".
+    """
+        
+    def __init__(self,
+                 input_file_path: Union[str, Path],
+                 output_file_path: Union[str, Path],
+                 stop_token: str = "eopc"
+                 ) -> None:
+        
+        self.input_extension = ".txt"
+        self.output_extension = ".txt"
+
+        super().__init__(
+            Path(input_file_path) if isinstance(input_file_path, str) else input_file_path, 
+            Path(output_file_path) if isinstance(output_file_path, str) else output_file_path, 
+            self.input_extension, 
+            self.output_extension
+        )
+
+        self.stop_token = stop_token
+
+    def map(self): 
+        
+        try: 
+            with open(self.input_file_path, 'r', encoding='utf-8') as input_file, open(self.output_file_path, 'w', encoding='utf-8') as output_file:
+
+                for line in input_file:
+                    modified_line = line.rstrip('\n') + ' ' + self.stop_token + '\n'
+                    output_file.write(modified_line)
+
+        except Exception as e:
+            logger.error(f"Error processing json file: {e}")
+            raise
+
+class GloVeFormatter(FileFunction):
+
+    """
+    Expects a json file containing word2vec-formatted sentence lists and outputs a text file
+    """
+
+    def __init__(self, 
+                 input_file_path: Union[str, Path],
+                 output_file_path: Union[str, Path],
+                 stop_token: str = ". eopc" # "end of podcast"
+                ) -> None:
+        
+        self.input_extension = ".json"
+        self.output_extension = ".txt"
+
+        super().__init__(
+            Path(input_file_path) if isinstance(input_file_path, str) else input_file_path, 
+            Path(output_file_path) if isinstance(output_file_path, str) else output_file_path, 
+            self.input_extension, 
+            self.output_extension
+        )
+
+        self.stop_token = stop_token
+
+    def map(self) -> None: 
+
+        try: 
+            logger.info(f"Processing json file: {self.input_file_path}")
+
+            with open(self.input_file_path, 'r', encoding='utf-8') as input_file, open(self.output_file_path, 'w', encoding='utf-8') as output_file:
+            
+                data = json.load(input_file)  # load JSON (should be a list of lists)
+
+                if not isinstance(data, list) or not all(isinstance(sentence, list) for sentence in data):
+                    raise ValueError("json file must contain a list of lists (tokenized sentences).")
+
+                for sentence in data:
+                    if sentence == [self.stop_token]:  # skip lines that are just ["eopc"]
+                        output_file.write("\n")  # Add a newline to separate sections
+                    else:
+                        output_file.write(" ".join(sentence) + " ")  # write words as a space-separated line
+        
+                logger.info(f"Finished processing. Output saved to: {self.output_file_path}")
+                
+        
+        except Exception as e:
+            logger.error(f"Error processing json file: {e}")
+            raise

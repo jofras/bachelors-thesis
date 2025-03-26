@@ -8,6 +8,8 @@ This script merges all turnText segments originating from the same URL (i.e. pod
 I haven't integrated this into the filefinder/proc/op trio because it requires "caching" jsons across files, 
 and instead of trying to build a prettier file preprocessing framework i should probably get on with training a
 word2vec and gloVe model on the whole corpus. I might get back to it later though.
+
+Also haven't integrated logging.
 """
 
 def merge_on_url_helper(input_file, output_file, cached_url, cached_turn_text):
@@ -20,6 +22,9 @@ def merge_on_url_helper(input_file, output_file, cached_url, cached_turn_text):
         output_file
         cached_url: The last URL from the last file, to check if an episode runs across files.
         cached_turn_text: The text gathered for that last URL, to be merged if applicable and written to the new file.
+
+    Returns: 
+        cached_url, cached_turn_text for the next file.
     """
     
     # initialize temp variables with cached values

@@ -14,7 +14,7 @@ This folder contains all code used in data preprocessing, i.e. turning the raw p
 
 ```filefinder.py``` contains a **FileFinder** class. As the name suggests, instances of this class find all files in a given directory that match chosen criteria. 
 
-```fileproc.py``` contains the **FileProcessor** class. This class takes a list of input files, a destination directory, and a ***FileFunction** (see next paragraph), and transforms all input files using that function, saving the output in the destination directory. 
+```fileproc.py``` contains the **FileProcessor** class. This class takes a list of input files, a destination directory, and a **FileFunction** (see next paragraph), and transforms all input files using that function, saving the output in the destination directory. 
 
 ```filefunc.py``` contains a parent class, **FileFunction**, and many subclasses that achieve different functionalities. A **FileFunction**, most generally, takes an input file path and an output file path and transforms input to output using its ```map()``` function. As of yet, I've implemented five subclasses: 
 

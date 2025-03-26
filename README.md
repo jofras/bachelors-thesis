@@ -24,7 +24,7 @@ This folder contains all code used in data preprocessing, i.e. turning the raw p
 - ```SentenceListCreator``` takes a text file and creates a list of tokens for each sentence therein, combining these lists to one big list. This is required for word2vec training. 
 - ```GloVeFormatter``` takes the list output by ```SentenceListCreator```, and returns a text file in GloVe input format. See [design choices](#design-choices). 
 
-Other methods in this folder include ```merge_on_url``` and ```create_ijson_gen```. See the diagram for explanations. 
+Other methods in this folder include ```merge_on_url``` and ```create_ijson_gen```. ```testing.py``` contains some of the tests I've used. See the diagram for explanations. 
 
 To help give an overview of the wrangling pipeline, here's a visual diagram: 
 

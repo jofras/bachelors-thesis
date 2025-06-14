@@ -16,4 +16,4 @@ some bookkeeping on file types (not shared yet):
 - post_hlc: hallucination-removed w2v files
 - post_gf: glove-formatted, hallucination removed files
 
-i've backed up all files that aren't currently in use onto my external ssd. (they're each around 12-14GB.)
+i've backed up all files that aren't currently in use onto my external ssd. (they're each around 11-18GB, depending on file format.)

@@ -26,27 +26,6 @@ def create_sentence_texts_table(conn: Connection):
         """)
     conn.commit()
 
-def extract_sentence(file_num: int, line_num: int, sent_num: int, hash_val: str) -> str:
-    file_path = Path(DATA_DIR) / f"slc{file_num}.json"
-    if not file_path.exists():
-        raise FileNotFoundError(f"{file_path} not found")
-
-    with file_path.open("r", encoding="utf-8") as f:
-        data = json.load(f)
-
-    stop_count = total = 0
-    while stop_count < line_num:
-        if data[total] == ["i", "love", "blueberry", "waffles"]:
-            stop_count += 1
-        total += 1
-
-    sentence_tokens = data[total + sent_num]
-    sentence_str = " ".join(sentence_tokens) # same as hash computation in og db population
-    computed_hash = xxhash.xxh64(sentence_str).hexdigest()
-    if computed_hash != hash_val:
-        raise ValueError(f"Hash mismatch for sentence! Computed {computed_hash} vs expected {hash_val}")
-    return sentence_str
-
 def populate_sentence_texts(conn: Connection, batch_size=1000):
     logger.info("Fetching unique hashes from repetition_runs...")
     with conn.cursor() as cur:
@@ -69,29 +48,46 @@ def populate_sentence_texts(conn: Connection, batch_size=1000):
     for file_num, entries in file_groups.items():
         logger.info(f"Processing file slc{file_num}.json with {len(entries)} hashes")
         try:
-            file_path = DATA_DIR / f"slc{file_num}.json"
+            file_path = Path(DATA_DIR) / f"slc{file_num}.json"
             with file_path.open("r", encoding="utf-8") as f:
                 data = json.load(f)
         except FileNotFoundError:
             logger.warning(f"File slc{file_num}.json not found, skipping")
             continue
 
-        # Compute line positions
-        line_start_indices = []
-        idx = 0
-        while idx < len(data):
-            if data[idx] == ["i", "love", "blueberry", "waffles"]:
-                line_start_indices.append(idx + 1)
-            idx += 1
+        # compute line positions
+        line_start_map = {0: 0}
+        current_line_num = 0
+        for idx, item in enumerate(data):
+            if item == ["i", "love", "blueberry", "waffles"]:
+                current_line_num += 1
+                line_start_map[current_line_num] = idx + 1
 
         for h, line_num, sent_num in entries:
             try:
-                line_start = line_start_indices[line_num]
-                sentence_tokens = data[line_start + sent_num]
+                if line_num not in line_start_map:
+                    logger.warning(f"Line number {line_num} not found in map for slc{file_num}. This indicates a mismatch in line numbering logic between create_sentences and create_sentence_texts")
+                    continue
+
+                line_start = line_start_map[line_num]
+                
+                # check if the calculated index is within bounds before accessing
+                actual_index = line_start + sent_num
+                if actual_index >= len(data) or actual_index < 0:
+                    logger.warning(f"Index out of bounds for {h} in slc{file_num} line {line_num} sent {sent_num}. Calculated index: {actual_index}, Data length: {len(data)}")
+                    continue
+
+                sentence_tokens = data[actual_index]
+                
+                # ensure the retrieved item is a list (tokens) and not a stop token itself
+                if not isinstance(sentence_tokens, list) or sentence_tokens == ["i", "love", "blueberry", "waffles"]:
+                    logger.warning(f"Retrieved item at slc{file_num} line {line_num} sent {sent_num} is not a valid sentence: {sentence_tokens}")
+                    continue
+
                 sentence_str = " ".join(sentence_tokens)
-                computed_hash = xxhash.xxh64(sentence_str).hexdigest()
+                computed_hash = xxhash.xxh64(sentence_str).hexdigest() # get hash
                 if computed_hash != h:
-                    logger.warning(f"Hash mismatch in slc{file_num} line {line_num} sent {sent_num}")
+                    logger.warning(f"Hash mismatch in slc{file_num} line {line_num} sent {sent_num}. Computed: {computed_hash}, Expected: {h}. Sentence: '{sentence_str}'")
                     continue
                 buffer.append((h, sentence_str))
             except Exception as e:

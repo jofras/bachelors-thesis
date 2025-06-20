@@ -138,3 +138,5 @@ if __name__ == "__main__":
         estimated_remaining = files_left * avg_loop_time / 60  # in minutes
 
         logger.info(f"Saved cleaned file to {output_path.name}. Estimated time remaining: {estimated_remaining:.2f} minutes")
+    
+    logger.info("Processing complete")

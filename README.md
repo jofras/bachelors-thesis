@@ -9,10 +9,8 @@ the project is now bigger:
 i am currently working on cleaning the tokenized sentences using the database. 
 
 some bookkeeping on file types (not shared yet): 
-- post_tc: files that have been "cleaned" from things like music annotation, gibberish, etc.
-- post_sta: files that have a stop token appended 
+- post_tc: files that have been "cleaned" from things like music annotation, gibberish, etc., with stop tokens appended
 - post_slc: json lists in word2vec, with empty lists and potential hallucinations still therein
-- post_elr: post "empty list removal" -> removing empty list elements to prep for hallucination removal
 - post_hlc: hallucination-removed w2v files
 - post_gf: glove-formatted, hallucination removed files
 

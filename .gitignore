@@ -1,0 +1,64 @@
+# Byte-compiled / cache files
+__pycache__/
+*.py[cod]
+*.so
+
+# Virtual environments
+.venv/
+env/
+venv/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Logs and debug output
+*.log
+*.tmp
+
+# Compiled binaries (e.g., GloVe)
+build/
+*.exe
+*.out
+*.bin
+
+# Embedding output
+embeddings/*.txt
+embeddings/*.bin
+embeddings/*.model
+embeddings/*.pkl
+
+# Generated corpora
+corpus.txt
+*.corpus
+
+# Dataset raw/processed data (cached intermediate results)
+datasets/**/raw/
+datasets/**/processed/
+datasets/**/cleaned/
+datasets/**/post_slc/
+datasets/**/post_tc/
+datasets/**/post_gf/
+
+# Database files
+*.db
+*.sqlite
+
+# Cluster-related
+*.slurm
+*.err
+*.out
+*.sh~
+
+# IDE-specific
+.vscode/
+.idea/
+
+# Testing artifacts
+testing/__pycache__/
+testing/*.tmp
+testing/*.log
+

@@ -7,6 +7,7 @@ import psycopg
 import json
 import xxhash
 import logging
+import time
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -30,12 +31,14 @@ def hash_sentence(sentence: list[str]) -> str:
 
 if __name__ == "__main__":
     
+    # get relevant files
     slc_files = FileFinder(
         directory=DATA_DIR,
         file_extension='.json',
         prefix='slc'
     ).find_files()
 
+    # connect to database
     conn = psycopg.connect(
         dbname="sentence_db", 
         user=USER, 
@@ -44,10 +47,16 @@ if __name__ == "__main__":
         port=5432
     )
 
+    # to be justified (see plots in analysis/hallucinations.ipynb)
     threshold = 3
 
-    for slc_file in slc_files:
+    total_time = 0
+
+    for j, slc_file in enumerate(slc_files):
         logger.info(f"Processing {Path(slc_file).name}")
+
+        start_time = time.time()
+
         with open(slc_file, 'r') as infile:
             sentence_list = json.load(infile)
 
@@ -63,7 +72,7 @@ if __name__ == "__main__":
             runs = cur.fetchall()
 
         logger.info(f"Found {len(runs)} repeated runs in {Path(slc_file)}.name")
-        # Preprocess runs into a map: (line_num, sent_num) → (hash, run_length)
+        # preprocess runs into a map: (line_num, sent_num) -> (hash, run_length)
         run_map = {
             (line_num, sent_num): (hash_str, run_length)
             for hash_str, line_num, sent_num, run_length in runs
@@ -119,4 +128,13 @@ if __name__ == "__main__":
         with open(output_path, 'w') as outfile:
             json.dump(output_list, outfile, ensure_ascii=False)
 
-        logger.info(f"Saved cleaned file to {output_path.name}")
+        loop_time = time.time() - start_time
+        total_time += loop_time
+
+        # estimate time remaining
+        files_done = j + 1
+        files_left = len(slc_files) - files_done
+        avg_loop_time = total_time / files_done
+        estimated_remaining = files_left * avg_loop_time / 60  # in minutes
+
+        logger.info(f"Saved cleaned file to {output_path.name}. Estimated time remaining: {estimated_remaining:.2f} minutes")

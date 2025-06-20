@@ -60,7 +60,7 @@ if __name__ == "__main__":
         with open(slc_file, 'r') as infile:
             sentence_list = json.load(infile)
 
-        file_idx = extract_file_idx(slc_file, "slc", ".json")
+        file_idx = extract_file_idx(Path(slc_file), prefix="slc", suffix="", extension=".json")
 
         with conn.cursor() as cur:
             cur.execute("""
@@ -91,6 +91,7 @@ if __name__ == "__main__":
                 line_num += 1
                 sent_num = 0
                 i += 1
+                output_list.append(sentence) # for glove (will be filtered in create_ijson_gen anyway)
                 continue  # do not include in output
 
             key = (line_num, sent_num)
@@ -108,7 +109,7 @@ if __name__ == "__main__":
                 if not all_match:
                     logger.error(f"Hash mismatch in run at {key} with length {run_length}")
                 else:
-                    logger.info(f"Removed repeated run at {key} (length {run_length})")
+                    logger.debug(f"Removed repeated run at {key} (length {run_length})")
 
                 # skip entire run
                 i += run_length

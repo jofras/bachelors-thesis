@@ -25,7 +25,7 @@ def create_repetition_runs_table(conn: Connection):
     with conn.cursor() as cur:
         # adding hash to the primary key would disallow the same hallucinated sentence in a new run
         cur.execute("""
-            CREATE TABLE repetition_runs (
+            CREATE TABLE IF NOT EXISTS repetition_runs (
                 id SERIAL PRIMARY KEY,
                 hash TEXT NOT NULL,
                 file_num INTEGER NOT NULL,

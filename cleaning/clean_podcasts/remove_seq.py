@@ -9,7 +9,7 @@ import xxhash
 import logging
 import time
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s - %(message)s")
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 DATA_DIR = '/Users/jonny/Documents/eth/bachelor_thesis/bachelors-thesis/datasets/podcasts/post_slc'
@@ -140,4 +140,4 @@ if __name__ == "__main__":
 
         logger.info(f"Saved cleaned file to {output_path.name}. Estimated time remaining: {estimated_remaining:.2f} minutes")
     
-    logger.info("Processing complete")
+    logger.info(f"Processing completed in {total_time}")

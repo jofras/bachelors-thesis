@@ -885,7 +885,7 @@ class GloVeFormatter(FileFunction):
     # expects a json file containing word2vec-formatted sentence lists and outputs a text file
 
     def __init__(self,
-                 stop_token: str = "eopc" # "end of podcast"
+                 stop_token: List[str] = ["i", "love", "blueberry", "waffles"]
                 ) -> None:
         
         self.input_extension = ".json"
@@ -912,13 +912,12 @@ class GloVeFormatter(FileFunction):
                     raise ValueError("json file must contain a list of lists (tokenized sentences).")
 
                 for sentence in data:
-                    if sentence == [self.stop_token]:  # skip lines that are just ["eopc"]
+                    if sentence == self.stop_token:  # skip sentinels
                         output_file.write("\n")  # add newline
-                    elif sentence != []:
+                    elif sentence: # safety, not really needed
                         output_file.write(" ".join(sentence) + " ")  # write words as a space-separated line
         
                 logger.info(f"Finished processing. Output saved to: {self.output_file_path}")
-                
         
         except Exception as e:
             logger.error(f"Error processing json file: {e}")

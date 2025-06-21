@@ -1,6 +1,4 @@
-# run_w2v.py
-
-import gensim 
+import gensim
 from gensim.models import Word2Vec
 from gensim.models.callbacks import CallbackAny2Vec
 import logging
@@ -9,51 +7,39 @@ import ijson
 from pathlib import Path
 from utils.filefinder import FileFinder
 import csv
+import cython
 
-logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO) 
+logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 logger = logging.getLogger("run_w2v.py")
 
-"""
-This script assumes that the sentence lists it gets as input are devoid of any repeated sentence fragments (in the case of the podcast dataset). 
-It creates a sentence list generator, that is then fed into gensim's word2vec model. 
-It saves the model to the same directory. 
-"""
-
 PODCASTS = 1
-FILEPATH = 'cluster/scratch/jquinn/input'
+FILEPATH = '/cluster/scratch/jquinn/input_w2v'
 
-def create_ijson_gen(input_file_paths, stop_token):
-    """
-    Takes a list of input file paths (JSON) and creates an ijson generator.
-    """
-    successes = failures = 0
-    
-    for file_path in input_file_paths:
-        file_path = Path(file_path) if isinstance(file_path, str) else file_path
-        
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                parser = ijson.items(f, 'item')  # adjust key based on actual JSON structure
-                
-                for sentence in parser:
-                    if isinstance(sentence, list) and sentence != [stop_token] and sentence != []:
-                        yield sentence
-            successes += 1
-        
-        except Exception as e:
-            failures += 1
-            logger.error(f"Error processing file {file_path}: {e}")
-            continue
+class CorpusIterable:
+    def __init__(self, file_paths, stop_token):
+        self.file_paths = file_paths
+        self.stop_token = stop_token
 
-    logger.info(f"Inserted sentences from {successes} files successfully. Encountered {failures} errors")
+    def __iter__(self):
+        for file_path in self.file_paths:
+            file_path = Path(file_path) if isinstance(file_path, str) else file_path
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    parser = ijson.items(f, 'item')
+                    for sentence in parser:
+                        # Compare with stop_token list, not nested list
+                        if isinstance(sentence, list) and sentence != self.stop_token and sentence != []:
+                            yield sentence
+            except Exception as e:
+                logger.error(f"Error processing file {file_path}: {e}")
+                continue
 
 class CSVLossLogger(CallbackAny2Vec):
-    def __init__(self, filepath="cluster/scratch/jquinn/loss_log.csv"):
+    def __init__(self, filepath="/cluster/scratch/jquinn/loss_log.csv"):
         self.epoch = 0
         self.loss_previous = 0.0
         self.filepath = filepath
 
-        # ensure the CSV file has a header
         if not os.path.exists(self.filepath):
             with open(self.filepath, 'w', newline='') as f:
                 writer = csv.writer(f)
@@ -78,37 +64,36 @@ if __name__ == "__main__":
     finder = FileFinder(
         directory=FILEPATH,
         file_extension='.json',
-        prefix='slc'
+        prefix='w2v'
     )
 
     sentence_list_paths = finder.find_files()
-    
+
     if PODCASTS:
         stop_token = ["i", "love", "blueberry", "waffles"]
         logger.info(f"Podcast branch taken; setting stop token to {stop_token}")
     else:
-        stop_token = [] # placeholder for NELA stop token
+        stop_token = []
         logger.info(f"NELA branch taken; setting stop token to {stop_token}")
 
-    logger.info("Creating ijson generator...")
-    generator = create_ijson_gen(sentence_list_paths, stop_token)
+    logger.info("Creating iterable corpus...")
+    corpus = CorpusIterable(sentence_list_paths, stop_token)
 
     logger.info("Starting model training...")
     model = Word2Vec(
-        sentences=generator,
+        sentences=corpus,
         vector_size=300,
-        window=7,
+        window=5, # try 7 or 10 later for more semantic capabilities
         min_count=5,
-        workers=32,
+        workers=64, # cluster
         sg=1,
         hs=0,
-        negative=15,
+        negative=5, # as in paper; for smaller corpora, 5-20 was deemed good
         ns_exponent=0.75,
-        sample=1e-3,
-        hashfxn=hash,
-        epochs=15,
+        sample=1e-5, # aggressively subsamples frequent (i.e. stop)words
+        epochs=5, # check 10 or 15 later 
         compute_loss=True,
         callbacks=[CSVLossLogger()]
     )
 
-    model.save("cluster/scratch/jquinn/word2vec.model")
+    model.save("/cluster/scratch/jquinn/word2vec.model")

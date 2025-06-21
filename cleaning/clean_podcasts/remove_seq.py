@@ -140,4 +140,4 @@ if __name__ == "__main__":
 
         logger.info(f"Saved cleaned file to {output_path.name}. Estimated time remaining: {estimated_remaining:.2f} minutes")
     
-    logger.info(f"Processing completed in {total_time}")
+    logger.info(f"Processing completed in {total_time/60:.2f} minutes")

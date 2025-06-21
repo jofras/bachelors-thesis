@@ -42,6 +42,7 @@ datasets/**/cleaned/
 datasets/**/post_slc/
 datasets/**/post_tc/
 datasets/**/post_gf/
+datasets/**/post_hlc/
 
 # Database files
 *.db

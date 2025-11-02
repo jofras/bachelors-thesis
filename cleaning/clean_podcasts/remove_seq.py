@@ -12,9 +12,9 @@ import time
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-DATA_DIR = '/Users/jonny/Documents/eth/bachelor_thesis/bachelors-thesis/datasets/podcasts/post_slc'
-USER = "jonny"
-PASSWORD = "buolamwini"
+DATA_DIR = ""
+USER = ""
+PASSWORD = ""
 
 STOP_SENTINEL = ["i", "love", "blueberry", "waffles"]
 
@@ -40,7 +40,7 @@ if __name__ == "__main__":
 
     # connect to database
     conn = psycopg.connect(
-        dbname="sentence_db", 
+        dbname="podcast_sentence_db", 
         user=USER, 
         password=PASSWORD, 
         host="localhost", 
@@ -48,7 +48,7 @@ if __name__ == "__main__":
     )
 
     # to be justified (see plots in analysis/hallucinations.ipynb)
-    threshold = 3
+    threshold = 4
 
     total_time = 0
 
@@ -71,7 +71,7 @@ if __name__ == "__main__":
             """, (file_idx, threshold))
             runs = cur.fetchall()
 
-        logger.info(f"Found {len(runs)} repeated runs in {Path(slc_file)}.name")
+        logger.info(f"Found {len(runs)} repeated runs in {Path(slc_file).name}")
         # preprocess runs into a map: (line_num, sent_num) -> (hash, run_length)
         run_map = {
             (line_num, sent_num): (hash_str, run_length)
@@ -123,7 +123,7 @@ if __name__ == "__main__":
         match = re.search(r'(\d+)$', Path(slc_file).stem)
         suffix = match.group(1) if match else Path(slc_file).stem
 
-        output_path = Path(f"/Users/jonny/Documents/eth/bachelor_thesis/bachelors-thesis/datasets/podcasts/post_hlc/{threshold}") / f"w2v{suffix}.json"
+        output_path = Path(f"") / f"w2v{suffix}.json"
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         with open(output_path, 'w') as outfile:

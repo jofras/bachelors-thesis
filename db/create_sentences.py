@@ -110,7 +110,7 @@ def populate_db(
                     logger.error(f"Error processing {file_path}: {e}")
                     continue
 
-            # Insert remaining buffered data
+            # insert remaining buffered data
             if buffer:
                 try:
                     cursor.executemany(insert_stmt, buffer)
@@ -208,4 +208,8 @@ if __name__ == "__main__":
 
     files = finder.find_files()
 
-    create_and_initialize_db(files)
+    create_and_initialize_db(
+        input_file_paths=files,
+        file_prefix='slc',
+        db_name="podcast_sentence_db"
+    )

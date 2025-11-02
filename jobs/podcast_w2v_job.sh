@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --job-name=w2v
+#SBATCH --job-name=podcast_w2v
 #SBATCH --cpus-per-task=64
-#SBATCH --mem-per-cpu=1000
+#SBATCH --mem-per-cpu=2000
 #SBATCH --time=5:00:00
 #SBATCH --output=slurm-%a.out
 #SBATCH --error=slurm-%a.err

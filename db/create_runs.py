@@ -147,7 +147,7 @@ def main_loop_streamed(conn: Connection, threshold: int, batch_size: int = 1000)
 
 if __name__ == "__main__":
     conn = psycopg.connect(
-        dbname="sentence_db",
+        dbname="podcast_sentence_db",
         user=USER,
         password=PASSWORD,
         host="localhost",

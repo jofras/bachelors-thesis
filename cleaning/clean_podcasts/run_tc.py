@@ -12,7 +12,7 @@ This script assumes the podcast dataset has been merged on urls and only contain
 if __name__ == "__main__":
 
     finder = FileFinder(
-        directory='/cluster/scratch/jquinn/input_raw/',
+        directory='/cluster/scratch/jquinn/input_tc/',
         file_extension='.txt',
         prefix='raw'
     )
@@ -32,5 +32,5 @@ if __name__ == "__main__":
         destination='/cluster/scratch/jquinn/output_tc/',
         output_prefix='tc'
     )
-
+    
     proc.process_files()

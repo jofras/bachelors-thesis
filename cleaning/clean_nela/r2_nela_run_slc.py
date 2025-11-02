@@ -9,12 +9,18 @@ import os
 This script assumes the podcast dataset has been merged on urls and only contains the "turnText" part of the original jsonl files.
 """
 
+INDIR = ""
+INPREFIX = ""
+INEXTENSION = ".txt"
+OUTDIR = ""
+OUTPREFIX = ""
+
 if __name__ == "__main__":
 
     finder = FileFinder(
-        directory='/cluster/scratch/jquinn/output_tc/',
-        file_extension='.txt',
-        prefix='tc'
+        directory=INDIR,
+        file_extension=INEXTENSION,
+        prefix=INPREFIX
     )
     
     slc_files = finder.find_files()
@@ -31,8 +37,8 @@ if __name__ == "__main__":
     proc = FileProcessor(
         input_file_path_list=[slc_file],
         function=slc_func,
-        destination='/cluster/scratch/jquinn/output_slc/',
-        output_prefix='slc'
+        destination=OUTDIR,
+        output_prefix=OUTPREFIX
     )
 
     proc.process_files()

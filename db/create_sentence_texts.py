@@ -26,7 +26,7 @@ def create_sentence_texts_table(conn: Connection):
         """)
     conn.commit()
 
-def populate_sentence_texts(conn: Connection, batch_size=1000):
+def populate_sentence_texts(conn: Connection, batch_size=1000, prefix=""):
     logger.info("Fetching unique hashes from repetition_runs...")
     with conn.cursor() as cur:
         cur.execute("SELECT DISTINCT hash, file_num, line_num, sent_num FROM repetition_runs;")
@@ -34,10 +34,10 @@ def populate_sentence_texts(conn: Connection, batch_size=1000):
 
     logger.info(f"Loaded {len(rows)} unique entries")
 
-    # Map hash -> (file_num, line_num, sent_num)
+    # map hash -> (file_num, line_num, sent_num)
     hash_locations = {row[0]: (row[1], row[2], row[3]) for row in rows}
 
-    # Group by file_num to batch disk access
+    # group by file_num to batch disk access
     file_groups = defaultdict(list)
     for h, (f, l, s) in hash_locations.items():
         file_groups[f].append((h, l, s))
@@ -46,13 +46,13 @@ def populate_sentence_texts(conn: Connection, batch_size=1000):
     buffer = []
 
     for file_num, entries in file_groups.items():
-        logger.info(f"Processing file slc{file_num}.json with {len(entries)} hashes")
+        logger.info(f"Processing file {prefix}slc{file_num}.json with {len(entries)} hashes")
         try:
-            file_path = Path(DATA_DIR) / f"slc{file_num}.json"
+            file_path = Path(DATA_DIR) / f"{prefix}slc{file_num}.json"
             with file_path.open("r", encoding="utf-8") as f:
                 data = json.load(f)
         except FileNotFoundError:
-            logger.warning(f"File slc{file_num}.json not found, skipping")
+            logger.warning(f"File {prefix}slc{file_num}.json not found, skipping")
             continue
 
         # compute line positions
@@ -116,7 +116,7 @@ def insert_sentences(conn: Connection, rows: list[tuple[str, str]]):
 
 if __name__ == "__main__":
     conn = psycopg.connect(
-        dbname="sentence_db", 
+        dbname="podcast_sentence_db", 
         user=USER, 
         password=PASSWORD, 
         host="localhost", 

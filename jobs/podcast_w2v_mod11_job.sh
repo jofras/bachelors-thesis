@@ -1,9 +1,8 @@
 #!/bin/bash
-#SBATCH --job-name=slc
-#SBATCH --array=0-69
-#SBATCH --cpus-per-task=1
-#SBATCH --mem-per-cpu=8000
-#SBATCH --time=2:30:00
+#SBATCH --job-name=podcast_mod11_w2v
+#SBATCH --cpus-per-task=64
+#SBATCH --mem-per-cpu=1000
+#SBATCH --time=2:00:00
 #SBATCH --output=slurm-%a.out
 #SBATCH --error=slurm-%a.err
 
@@ -13,4 +12,4 @@ module load python/3.9.18
 
 source ~/myenv/bin/activate
 cd /cluster/scratch/jquinn/
-python r2_nela_run_slc.py
+python run_w2v_split11.py
